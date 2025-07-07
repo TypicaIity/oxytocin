@@ -1,6 +1,16 @@
 #include "vga/vga.h"
 
-void kmain() {
+#include "interrupts/isr.h"
+#include "interrupts/idt.h"
+
+void kinit() {
 	vga_cls();
-	puts("Hello, World!");
+	
+	idt_init();
+}
+
+void kmain() {
+	kinit();
+	
+	asm volatile("mov $0, %eax\n div %al");
 }

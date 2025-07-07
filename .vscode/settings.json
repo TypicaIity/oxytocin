@@ -1,0 +1,11 @@
+{
+	"files.associations": {
+		"*.s": "asm-collection",
+		"isr.h": "c",
+		"stdint.h": "c",
+		"mem.h": "c",
+		"idt.h": "c",
+		"vga.h": "c",
+		"types.h": "c"
+	}
+}

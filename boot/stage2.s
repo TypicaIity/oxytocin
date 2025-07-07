@@ -107,8 +107,6 @@ lm:
 	mov fs, ax
 	mov gs, ax
 	mov ss, ax
-
-	mov rsp, 0x7C00		; Use area below bootloader
 	
 	jmp KERNEL
 

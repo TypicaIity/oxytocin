@@ -40,7 +40,9 @@ def build():
 			run(f"{AS} {ASFLAGS} -f bin {file} -o {out}.bin")
 		else:
 			run(f"{AS} {ASFLAGS} -f elf64 {file} -o {out}.o")
-			objects.append(out + ".o")
+			out += ".o"
+			if name == "stage3": objects.insert(0, out)
+			else: objects.append(out)
 
 	for file in files:
 		name, ext = file.rsplit(".", 1)
@@ -86,9 +88,7 @@ def build():
 			print(f"kernel lba: {pos // 512}")
 			
 			with open(kernel, "rb") as infile:
-				kernel_data = infile.read()
-				outfile.write(kernel_data)
-				print(f"Kernel size: {len(kernel_data)} bytes ({(len(kernel_data) + 511) // 512} sectors)")
+				outfile.write(infile.read())
 		
 		run(
 			f"xorriso -as mkisofs -b boot/{os.path.basename(image)} -c boot/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr {image} -o {iso} {tmp}",
