@@ -71,7 +71,7 @@ void isr_register(uint8_t n, isr_t f) {
 	handlers[n] = f;
 }
 
-static const char* hexDigits = "0123456789ABCDEF";
+static const char hexDigits[] = "0123456789ABCDEF";
 
 void isr_handler(context_t* ctx) {
 	isr_t f = handlers[ctx->int_no];
@@ -83,19 +83,20 @@ void isr_handler(context_t* ctx) {
 
 		puts(
 			"\n\n\n\n\n\n\n"
-			"                                       ;C\n"
+			"                                     ;C\n"
 			"\n"
-			"      Your PC ran into a problem and needs to restart.\n"
-			"      We're just collecting some error info, and then we'll restart for you.\n"
-			"      If you'd like to know more, you can search online later for this error:\n"
+			"     Your PC ran into a problem and needs to restart.\n"
+			"     We're just collecting some error info, and then we'll restart for you.\n"
+			"     If you'd like to know more, you can search online later for this error:\n"
 			"\n\n"
+			"     "
 		);
-		puts("      ");
 		puts(exceptionMessages[ctx->int_no]);
-		puts(" (");
-		puts("0x");
-		for (int i = 28; i >= 0; i -= 4) putch(hexDigits[(ctx->int_no >> i) & 0xF]);
-		puts(")\n");
+		putch(' '), putch('(');
+		putch('0'), putch('x');
+		for (int i = 28; i >= 0; i -= 4)
+			putch(hexDigits[(ctx->int_no >> i) & 0xF]);
+		putch(')');
 
 		asm("hlt");
 	}

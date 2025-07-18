@@ -42,7 +42,7 @@ void putch(char ch) {
 		cx = 0;
 		cy++;
 
-		// TODO: scrolling :P
+		// TODO: scrolling
 	scroll:
 		if (cy > VGA_HEIGHT)
 			vga_cls();

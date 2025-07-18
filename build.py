@@ -9,7 +9,7 @@ CC = "x86_64-elf-gcc"
 AS = "nasm"
 LD = "x86_64-elf-ld"
 
-CCFLAGS = "-ffreestanding -std=gnu99 -O2 -Isrc"
+CCFLAGS = "-ffreestanding -std=gnu99 -O2 -Isrc -mcmodel=kernel -fno-stack-protector -mno-red-zone"
 ASFLAGS = ""
 LDFLAGS = "-nostd -T linker.ld"
 
@@ -100,6 +100,8 @@ def build():
 
 def main(argv) -> int:
 	iso = build()
+	if len(argv) <= 1:
+		return 0
 
 	if argv[1] == "run":
 		return run(f"qemu-system-x86_64 -hdd {iso} -net none")

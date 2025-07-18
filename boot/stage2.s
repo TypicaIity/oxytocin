@@ -95,7 +95,7 @@ setupPaging:
 	mov eax, PD_TABLE
 	or eax, 0x03		; present | writable
 	mov [PDP_TABLE], eax
-	mov eax, 0x83		; present | writable | page size
+	mov eax, 0x83		; present | writable | huge
 	mov [PD_TABLE], eax
 	ret
 
