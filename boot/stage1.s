@@ -1,36 +1,24 @@
-[BITS 16]
-[ORG 0x7C00]
+[bits 16]
+[org 0x7C00]
 
 boot:
-	cli
-	mov ax, 0x0000
-	mov ds, ax
-	mov es, ax
-	mov ss, ax
-	mov sp, 0x7C00
-	sti
+	mov bp, 0x0500
+	mov sp, bp
 
-	mov ah, 0x41
-	mov bx, 0x55AA
-	int 0x13
-	jc .err
-	
-	cmp bx, 0xAA55
-	jne .err
+	mov bx, 0x0002
+
+	mov byte [drive], dl
 
 	mov ah, 0x42
 	mov si, packet
+	mov dl, [drive]
 	int 0x13
 	jc .err
+
 	jmp 0x0000:STAGE2
 
 .err:
 	mov si, err
-	call puts
-	jmp $
-
-puts:
-	pusha
 	mov ah, 0x0E
 .loop:
 	lodsb
@@ -39,8 +27,7 @@ puts:
 	int 0x10
 	jmp .loop
 .done:
-	popa
-	ret
+	jmp $
 
 packet:
 	db 16		; sizeof packet
@@ -50,9 +37,10 @@ packet:
 	dw 0		; buffer segment
 	dq 1		; starting lba
 
-STAGE2 equ 0x1000
+STAGE2 equ 0x7E00
 
-err db 'ERRDISK', 13, 10, 0
+err db 'ERRDISK', 0
+drive: db 0x00
 
 times 510-($-$$) db 0
 dw 0xAA55

@@ -1,15 +1,31 @@
 [bits 16]
-[org 0x1000]
+[org 0x7E00]
 
 stage2:
-	mov ah, 0x42
-	mov dl, 0x80
-	mov si, packet
-	int 0x13
-	jc .err
-
 	cli
-	
+	lgdt [gdtr32]
+
+	mov eax, cr0
+	or eax, 1
+	mov cr0, eax
+
+	jmp CS32:pm
+
+%include "boot/gdt.inc"
+
+[bits 32]
+pm:
+	mov ax, DS32
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	mov ss, ax
+
+	mov ebp, 0x90000
+	mov esp, ebp
+
+	pushad
 	pushfd
 	pop eax
 	mov ecx, eax
@@ -20,8 +36,8 @@ stage2:
 	pop eax
 	push ecx
 	popfd
-	xor eax, ecx
-	jz .err
+	cmp eax, ecx
+	je .err
 
 	mov eax, 0x80000000
 	cpuid
@@ -32,44 +48,36 @@ stage2:
 	cpuid
 	test edx, 1 << 29
 	jz .err
-	
-	call setupPaging
-	
-	lgdt [gdtr]
-	
-	mov eax, cr0 
-	or al, 1
-	mov cr0, eax
 
-	jmp CODESEG:pm
-.err:
-	mov si, err
+	mov edi, 0x1000
+	mov cr3, edi
+	xor eax, eax
+	mov ecx, 4096
+	rep stosd
+	
+	mov edi, cr3
+
+	mov dword [edi], 0x2003
+	add edi, 0x1000
+	mov dword [edi], 0x3003
+	add edi, 0x1000
+	mov dword [edi], 0x4003
+
+	add edi, 0x1000
+	mov ebx, 0x00000003
+
+	mov ecx, 512
 .loop:
-	lodsb
-	or al, al
-	jz .done
-	mov ah, 0x0E
-	int 0x10
-	jmp .loop
-.done:
-	hlt
-	jmp .done
+	mov dword [edi], ebx
+	add ebx, 0x1000
+	add edi, 8
 
-[bits 32]
-pm:
-	mov ax, DATASEG
-	mov ds, ax
-	mov es, ax
-	mov fs, ax
-	mov gs, ax
-	mov ss, ax
-
+	dec ecx
+	jnz .loop
+	
 	mov eax, cr4
 	or eax, 1 << 5
 	mov cr4, eax
-
-	mov eax, PML4_TABLE
-	mov cr3, eax
 
 	mov ecx, 0xC0000080
 	rdmsr
@@ -79,66 +87,41 @@ pm:
 	mov eax, cr0
 	or eax, 1 << 31
 	mov cr0, eax
+	
+	lgdt [gdtr64]
+	jmp CS64:lm
 
-	jmp CODESEG64:lm
+.err:
+	mov esi, err
+	mov edx, 0xB8000
+.err.loop:
+	mov al, byte [esi]
+	test al, al
+	jz .err.done
 
-[bits 32]
-setupPaging:
-	mov edi, PML4_TABLE
-	mov ecx, 0x1000
-	xor eax, eax
-	rep stosd
+	mov ah, 0x07
+	mov word [edx], ax
 
-	mov eax, PDP_TABLE
-	or eax, 0x03		; present | writable
-	mov [PML4_TABLE], eax
-	mov eax, PD_TABLE
-	or eax, 0x03		; present | writable
-	mov [PDP_TABLE], eax
-	mov eax, 0x83		; present | writable | huge
-	mov [PD_TABLE], eax
-	ret
+	inc esi
+	add edx, 2
+
+	jmp .err.loop
+.err.done:
+	jmp $
 
 [bits 64]
 lm:
-	mov ax, DATASEG64
-	mov ds, ax
-	mov es, ax
-	mov fs, ax
-	mov gs, ax
-	mov ss, ax
-	
+	mov ax, DS64
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+
 	jmp KERNEL
 
-gdtStart:
-	dq 0					; null
-	dq 0x00CF9A000000FFFF	; cs 32
-	dq 0x00CF92000000FFFF	; ds 32
-	dq 0x00AF9A000000FFFF	; cs 64
-	dq 0x00AF92000000FFFF	; ds 64
-gdtEnd:
+KERNEL: equ 0x8200
 
-gdtr:
-	dw gdtEnd - gdtStart - 1
-	dd gdtStart
+err db "ERRHARDWARE", 0
 
-packet:
-	db 16		; sizeof packet
-	db 0		; reserved
-	dw 32		; size
-	dw KERNEL	; buffer offset
-	dw 0		; buffer segment
-	dq 2		; starting lba
-
-CODESEG		equ 0x08
-DATASEG		equ 0x10
-CODESEG64	equ 0x18
-DATASEG64	equ 0x20
-
-PML4_TABLE	equ 0x2000
-PDP_TABLE	equ 0x3000
-PD_TABLE	equ 0x4000
-
-KERNEL		equ 0x9000
-
-err db 'BAD_HARDWARE_OR_DISK', 0
+times 512-($-lm) db 0
