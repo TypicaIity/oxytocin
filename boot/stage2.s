@@ -3,7 +3,7 @@
 
 stage2:
 	cli
-	lgdt [gdtr32]
+	lgdt [gdtr]
 
 	mov eax, cr0
 	or eax, 1
@@ -88,7 +88,6 @@ pm:
 	or eax, 1 << 31
 	mov cr0, eax
 	
-	lgdt [gdtr64]
 	jmp CS64:lm
 
 .err:
@@ -120,7 +119,7 @@ lm:
 
 	jmp KERNEL
 
-KERNEL: equ 0x8200
+KERNEL equ 0x8200
 
 err db "ERRHARDWARE", 0
 

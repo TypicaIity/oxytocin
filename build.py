@@ -9,18 +9,21 @@ CC = "x86_64-elf-gcc"
 AS = "nasm"
 LD = "x86_64-elf-ld"
 
-CCFLAGS = "-ffreestanding -std=gnu99 -O2 -Isrc -mcmodel=kernel -fno-stack-protector -mno-red-zone"
+CCFLAGS = "-ffreestanding -std=gnu99 -O2 -Isrc -mcmodel=kernel -fno-stack-protector -mno-red-zone -Wall -Werror"
 ASFLAGS = ""
 LDFLAGS = "-nostd -T linker.ld"
 
-def run(cmd: str, **kw) -> int:
-	try:
-		print(cmd)
-		subprocess.check_call(cmd.split(" "), **kw)
-	except subprocess.CalledProcessError:
-		sys.exit(1)
+QEMUFLAGS = "-net none -d int -no-reboot"
 
-def build():
+def run(cmd: str, wait=True, **kw) -> int:
+	print(cmd)
+	if wait:
+		try: subprocess.check_call(cmd, shell=True, **kw)
+		except subprocess.CalledProcessError: sys.exit(1)
+	else:
+		subprocess.Popen(cmd, shell=True, **kw)
+
+def build(debug=False):
 	files = []
 	for ext in ("c", "s"):
 		files.extend(glob(f"./**/*.{ext}", recursive=True))
@@ -51,7 +54,10 @@ def build():
 		name = os.path.basename(name)
 
 		out = os.path.join("build", f"{name}.o")
-		run(f"{CC} {CCFLAGS} -c {file} -o {out}")
+		if debug:
+			run(f"{CC} {CCFLAGS} -ggdb -c {file} -o {out}")
+		else:
+			run(f"{CC} {CCFLAGS} -c {file} -o {out}")
 		objects.append(out)
 
 	iso = os.path.join("build", "os.iso")
@@ -63,6 +69,8 @@ def build():
 		print("no object files to link")
 		return 1
 
+	if debug:
+		run(f"{LD} {LDFLAGS} -o {os.path.join('build', 'kernel.elf')} {' '.join(objects)}")
 	_ = os.path.join("build", "kernel.bin")
 	run(f"{LD} {LDFLAGS} -o {_} {' '.join(objects)}")
 	run(f"objcopy -O binary {_} {kernel}")
@@ -80,15 +88,22 @@ def build():
 			with open(stage2, "rb") as infile:
 				outfile.write(infile.read())
 			
-			pos = outfile.tell()
-			if pos % 512 != 0:
-				outfile.write(b'\0' * (512 - (pos % 512)))
-				pos = outfile.tell()
+			klba = outfile.tell()
+			if klba % 512 != 0:
+				outfile.write(b'\0' * (512 - (klba % 512)))
+				klba = outfile.tell()
 			
-			print(f"kernel lba: {pos // 512}")
+			print(f"kernel lba: {klba // 512}")
 			
 			with open(kernel, "rb") as infile:
 				outfile.write(infile.read())
+
+			ksize = (outfile.tell() - klba) // 512
+			print(f"kernel size: {ksize} sectors")
+
+			with open(stage1, "r+b") as f:
+				f.seek(0x31)
+				f.write(((klba // 512) + ksize).to_bytes(2, sys.byteorder))
 		
 		run(
 			f"xorriso -as mkisofs -b boot/{os.path.basename(image)} -c boot/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr {image} -o {iso} {tmp}",
@@ -99,12 +114,15 @@ def build():
 	return iso
 
 def main(argv) -> int:
-	iso = build()
+	iso = build(len(argv) > 1 and argv[1] == "debug")
 	if len(argv) <= 1:
 		return 0
 
 	if argv[1] == "run":
-		return run(f"qemu-system-x86_64 -hdd {iso} -net none")
+		return run(f"qemu-system-x86_64 -hdd {iso} {QEMUFLAGS}")
+	elif argv[1] == "debug":
+		run(f"qemu-system-x86_64 -hdd {iso} {QEMUFLAGS}", False)
+		return run(f"gdb -ex 'target remote localhost:1234' {os.path.join('build', 'kernel.elf')}", True)
 	
 	return 0
 

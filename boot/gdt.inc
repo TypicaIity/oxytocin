@@ -1,24 +1,16 @@
-gdt32Start:
+gdtStart:
 	dq 0					; null
 	dq 0x00CF9A000000FFFF	; cs 32
 	dq 0x00CF92000000FFFF	; ds 32
-gdt32End:
-
-gdt64Start:
-	dq 0					; null
 	dq 0x00AF9A000000FFFF	; cs 64
 	dq 0x00AF92000000FFFF	; ds 64
-gdt64End:
+gdtEnd:
 
-gdtr32:
-	dw gdt32End - gdt32Start - 1
-	dd gdt32Start
-
-gdtr64:
-	dw gdt64End - gdt64Start - 1
-	dd gdt64Start
+gdtr:
+	dw gdtEnd - gdtStart - 1
+	dd gdtStart
 
 CS32 equ 0x08
 DS32 equ 0x10
-CS64 equ 0x08
-DS64 equ 0x10
+CS64 equ 0x18
+DS64 equ 0x20

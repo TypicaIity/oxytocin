@@ -2,6 +2,7 @@
 [org 0x7C00]
 
 boot:
+	cli
 	mov bp, 0x0500
 	mov sp, bp
 
@@ -32,7 +33,7 @@ boot:
 packet:
 	db 16		; sizeof packet
 	db 0		; reserved
-	dw 6		; size
+	dw 15		; size
 	dw STAGE2	; buffer offset
 	dw 0		; buffer segment
 	dq 1		; starting lba

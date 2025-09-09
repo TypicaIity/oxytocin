@@ -2,8 +2,8 @@
 	"files.associations": {
 		"*.s": "asm-collection",
 		"*.lua": "luau",
-		"compare": "c",
+		"mem.h": "c",
 		"types.h": "c",
-		"mem.h": "c"
+		"vga.h": "c"
 	}
 }
