@@ -2,8 +2,8 @@
 #include "isr.h"
 #include "std/mem.h"
 
-static idtr_t desc;
-static idt_entry_t idt[IDT_SIZE];
+static idtr_t oxy_nobss desc;
+static idt_entry_t oxy_nobss idt[IDT_SIZE];
 
 extern void isr0();
 extern void isr1();

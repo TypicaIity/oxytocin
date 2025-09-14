@@ -1,9 +1,0 @@
-{
-	"files.associations": {
-		"*.s": "asm-collection",
-		"*.lua": "luau",
-		"mem.h": "c",
-		"types.h": "c",
-		"vga.h": "c"
-	}
-}

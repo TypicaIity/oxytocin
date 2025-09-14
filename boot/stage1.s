@@ -2,17 +2,9 @@
 [org 0x7C00]
 
 boot:
-	cli
-	mov bp, 0x0500
-	mov sp, bp
-
-	mov bx, 0x0002
-
-	mov byte [drive], dl
-
+	mov bx, 2
 	mov ah, 0x42
 	mov si, packet
-	mov dl, [drive]
 	int 0x13
 	jc .err
 
@@ -33,7 +25,7 @@ boot:
 packet:
 	db 16		; sizeof packet
 	db 0		; reserved
-	dw 15		; size
+	dw 0x67		; size (see build.py, line 104)
 	dw STAGE2	; buffer offset
 	dw 0		; buffer segment
 	dq 1		; starting lba

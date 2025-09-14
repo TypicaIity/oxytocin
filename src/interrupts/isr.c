@@ -5,7 +5,7 @@
 #include "vga/vga.h"
 #include "drivers/io.h"
 
-static isr_t handlers[256];
+static isr_t oxy_nobss handlers[256];
 
 static const char* exceptionMessages[32] = {
 	"EXCEPTION_DIVIDE_BY_ZERO",
@@ -41,16 +41,6 @@ static const char* exceptionMessages[32] = {
 	"EXCEPTION_RESERVED_30",
 	"EXCEPTION_RESERVED_31"
 };
-
-#define PIC1_CMD    0x20
-#define PIC1_DATA   0x21
-#define PIC2_CMD    0xA0
-#define PIC2_DATA   0xA1
-
-#define PIC_EOI     0x20
-
-extern void outb(uint16_t port, uint8_t value);
-extern uint8_t inb(uint16_t port);
 
 void isr_init(void) {
 	memset(handlers, 0, sizeof(handlers));

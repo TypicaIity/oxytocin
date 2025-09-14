@@ -9,11 +9,11 @@ CC = "x86_64-elf-gcc"
 AS = "nasm"
 LD = "x86_64-elf-ld"
 
-CCFLAGS = "-ffreestanding -std=gnu99 -O2 -Isrc -mcmodel=kernel -fno-stack-protector -mno-red-zone -Wall -Werror"
+CCFLAGS = "-ffreestanding -std=gnu99 -O2 -Isrc -mcmodel=kernel -fno-stack-protector -mno-red-zone -Wall -Werror -include src/std/types.h -include src/common.h"
 ASFLAGS = ""
 LDFLAGS = "-nostd -T linker.ld"
 
-QEMUFLAGS = "-net none -d int -no-reboot"
+QEMUFLAGS = "-net none -d int -no-reboot -cpu qemu64,+ssse3,+sse4.1,+sse4.2"
 
 def run(cmd: str, wait=True, **kw) -> int:
 	print(cmd)
@@ -102,8 +102,15 @@ def build(debug=False):
 			print(f"kernel size: {ksize} sectors")
 
 			with open(stage1, "r+b") as f:
-				f.seek(0x31)
-				f.write(((klba // 512) + ksize).to_bytes(2, sys.byteorder))
+				f.seek(0x20)
+				chunk = f.read(24)
+				offset = 0x20 + chunk.find((0x67).to_bytes(2, "little"))
+				if offset == 0x1F:
+					print("packet.size offset not found (is the size 0xB0B7?)")
+					sys.exit(1)
+				print(f"packet.size at {offset:#x}")
+				f.seek(offset)
+				f.write(((klba // 512) + ksize).to_bytes(2, "little"))
 		
 		run(
 			f"xorriso -as mkisofs -b boot/{os.path.basename(image)} -c boot/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr {image} -o {iso} {tmp}",
@@ -121,7 +128,7 @@ def main(argv) -> int:
 	if argv[1] == "run":
 		return run(f"qemu-system-x86_64 -hdd {iso} {QEMUFLAGS}")
 	elif argv[1] == "debug":
-		run(f"qemu-system-x86_64 -hdd {iso} {QEMUFLAGS}", False)
+		run(f"qemu-system-x86_64 -hdd {iso} {QEMUFLAGS} -s -S", False)
 		return run(f"gdb -ex 'target remote localhost:1234' {os.path.join('build', 'kernel.elf')}", True)
 	
 	return 0

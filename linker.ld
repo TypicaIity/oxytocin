@@ -3,6 +3,8 @@ ENTRY(_start)
 
 SECTIONS {
 	. = 0x8200;
+
+	__ld_kernel_begin = .;
 	
 	.text : {
 		*(.text)
@@ -18,5 +20,11 @@ SECTIONS {
 	
 	.bss : {
 		*(.bss)
+	}
+
+	__ld_kernel_end = .;
+
+	/DISCARD/ : {
+		*(.comment)
 	}
 }

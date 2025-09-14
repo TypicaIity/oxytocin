@@ -1,10 +1,8 @@
 #include "vga.h"
 
-#include "std/types.h"
-
-static uint16_t cx = 0;
-static uint16_t cy = 0;
 static uint8_t col = 0x07;
+static uint16_t oxy_nobss cx = 0;
+static uint16_t oxy_nobss cy = 0;
 
 static uint16_t* buf = (uint16_t*)0xB8000;
 
@@ -26,9 +24,7 @@ void putch(char ch) {
 	case 0:
 		return;
 	case '\n':
-		cx = 0;
-		cy++;
-		goto scroll;
+		goto newline;
 	case '\t':
 		vga_entry(cy * VGA_WIDTH + cx++, ' ');
 		vga_entry(cy * VGA_WIDTH + cx++, ' ');
@@ -46,10 +42,11 @@ void putch(char ch) {
 
 	cx++;
 	if (cx > VGA_WIDTH) {
+	newline:
+		cx = 0;
 		cy++;
 
-	// TODO:
-	scroll:
+		// TODO
 		if (cy > VGA_HEIGHT)
 			vga_cls();
 	}

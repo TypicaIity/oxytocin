@@ -1,7 +1,5 @@
 #pragma once
 
-#include "std/types.h"
-
 #define KERNEL_CS 0x18
 
 typedef struct {
