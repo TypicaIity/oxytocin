@@ -1,3 +1,12 @@
+;
+; Created by felix on 9/26/2025.
+;
+
+; COPYRIGHT Fentanyl LLC 2025
+; v0.0.1-beta
+
+; MIT LICENSE
+
 [bits 16]
 [org 0x7E00]
 
@@ -62,10 +71,9 @@ pm:
 	mov dword [edi], 0x3003
 	add edi, 0x1000
 	mov dword [edi], 0x4003
-
 	add edi, 0x1000
-	mov ebx, 0x00000003
 
+	mov ebx, 0x3
 	mov ecx, 512
 .loop:
 	mov dword [edi], ebx

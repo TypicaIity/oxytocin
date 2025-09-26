@@ -1,6 +1,14 @@
+#
+# Created by felix on 9/26/2025.
+#
+
+# COPYRIGHT Fentanyl LLC 2025
+# v0.0.1-beta
+
+# MIT LICENSE
+
 import os
 import sys
-import time
 import subprocess
 from glob import glob
 from tempfile import TemporaryDirectory
@@ -18,10 +26,14 @@ QEMUFLAGS = "-net none -d int -no-reboot -cpu qemu64,+ssse3,+sse4.1,+sse4.2"
 def run(cmd: str, wait=True, **kw) -> int:
 	print(cmd)
 	if wait:
-		try: subprocess.check_call(cmd, shell=True, **kw)
-		except subprocess.CalledProcessError: sys.exit(1)
+		try:
+			return subprocess.check_call(cmd, shell=True, **kw)
+		except subprocess.CalledProcessError:
+			sys.exit(1)
+			return 0
 	else:
 		subprocess.Popen(cmd, shell=True, **kw)
+		return 0
 
 def build(debug=False):
 	files = []
