@@ -2,7 +2,6 @@ import os
 import sys
 import subprocess
 from glob import glob
-from tempfile import TemporaryDirectory
 
 CC = "x86_64-elf-gcc"
 AS = "nasm"
@@ -10,12 +9,12 @@ LD = "x86_64-elf-ld"
 QEMU = "qemu-system-x86_64"
 TEA = "./tea.exe" # https://github.com/felixsidzed/tea
 
-CCFLAGS = "-ffreestanding -std=gnu99 -O2 -Isrc -Isrc/std -mcmodel=kernel -fno-stack-protector -mno-red-zone -Wall -Werror -include src/common.h -include src/std/stdint.h"
+CCFLAGS = "-ffreestanding -fno-stack-protector -fpic -mno-red-zone -Wall -Wextra -include /opt/cross/lib/gcc/x86_64-elf/13.2.0/include/stdint-gcc.h"
 ASFLAGS = ""
-LDFLAGS = "-nostd -T linker.ld"
+LDFLAGS = "-nostd -nostdlib -T linker.ld"
 TEAFLAGS = "--triple x86_64-elf -v -64 -O0 -Isrc"
 
-QEMUFLAGS = "-net none -cpu qemu64,+ssse3,+sse4.1,+sse4.2"
+QEMUFLAGS = "-bios /usr/share/OVMF/OVMF_CODE_4M.fd -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd -drive if=pflash,format=raw,file=build/OVMF_VARS.fd -boot d -serial stdio"
 
 def run(cmd: str, wait=True, **kw) -> int:
 	print(cmd)
@@ -30,107 +29,85 @@ def run(cmd: str, wait=True, **kw) -> int:
 		return 0
 
 def build(debug=False):
-	files = []
-	for ext in ("c", "s"): # , "tea"
-		files.extend(glob(f"./**/*.{ext}", recursive=True))
+	bootFiles = glob(f"./boot/*.c", recursive=True)
+	
+	print(f"found {len(bootFiles)} bootloader source files")
+	if len(bootFiles) == 0:
+		sys.exit(1)
 
-	print(f"found {len(files)} source files")
+	bootObjects = []
+	for file in bootFiles:
+		name, ext = file.rsplit(".", 1)
+		name = os.path.basename(name)
+		out = os.path.join("build", f"{name}.o")
+		run(f"{CC} {CCFLAGS} -I/usr/include/efi -I/usr/include/efi/x86_64 -fshort-wchar {'-g -c' if debug else '-c'} {file} -o {out}")
+		bootObjects.append(out)
+
+	boot = "build/boot.elf"
+	run(f"{LD} -nostd -nostdlib -znocombreloc -T /usr/lib/elf_x86_64_efi.lds /usr/lib/crt0-efi-x86_64.o {' '.join(reversed(bootObjects))} -L/usr/lib -lefi -lgnuefi -o {boot}")
+
+	efi = "build/BOOTX64.EFI"
+	run(f"objcopy -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel -j .rela -j .reloc --target=efi-app-x86_64 {boot} {efi}")
+
+	efi2 = os.path.join("build", "fatroot", "EFI", "BOOT")
+	os.makedirs(efi2, exist_ok=True)
+	run(f"mv {efi} {efi2}")
+
+	os.makedirs("build/iso", exist_ok=True)
+	run("cp -r build/fatroot/EFI build/iso/")
+
+	files = []
+	for ext in ("c", "s"):
+		files.extend(glob(f"./src/*.{ext}", recursive=True))
+
+	print(f"found {len(bootFiles)} kernel source files")
+	if len(files) == 0:
+		sys.exit(1)
 
 	objects = []
 	for file in files:
 		name, ext = file.rsplit(".", 1)
 		name = os.path.basename(name)
+		out = os.path.join("build", f"{name}.o")
 		if ext == "s":
-			out = os.path.join("build", f"{name}")
-
-			if name in ("stage1", "stage2"):
-				run(f"{AS} {ASFLAGS} -f bin {file} -o {out}.bin")
-			else:
-				run(f"{AS} {ASFLAGS} -f elf64 {file} -o {out}.o")
-				out += ".o"
-				if name == "stage3": objects.insert(0, out)
-				else: objects.append(out)
-		elif ext == "tea":
-			out = os.path.join("build", f"{name}.o")
-			run(f"{TEA} {TEAFLAGS} {file} -o {out}")
-			objects.append(out)
+			run(f"{AS} {ASFLAGS} -f elf64 {file} -o {out}")
 		else:
-			out = os.path.join("build", f"{name}.o")
-			if debug:
-				run(f"{CC} {CCFLAGS} -g -c {file} -o {out}")
-			else:
-				run(f"{CC} {CCFLAGS} -c {file} -o {out}")
-			objects.append(out)
+			run(f"{CC} {CCFLAGS} {'-g -c' if debug else '-c'} {file} -o {out}")
+		objects.append(out)
 
-	iso = os.path.join("build", "os.iso")
-	stage1 = os.path.join("build", "stage1.bin")
-	stage2 = os.path.join("build", "stage2.bin")
-	kernel = os.path.join("build", "kernel.raw")
+	kernel = "build/kernel.elf"
+	run(f"{LD} {LDFLAGS} {' '.join(reversed(objects))} -L/usr/lib -lefi -lgnuefi -o {kernel}")
 
-	if len(objects) == 0:
-		print("no object files to link")
-		return 1
+	run("cp -r build/kernel.elf build/iso/")
 
-	if debug:
-		run(f"{LD} {LDFLAGS} -o {os.path.join('build', 'kernel.elf')} {' '.join(objects)}")
-	_ = os.path.join("build", "kernel.bin")
-	run(f"{LD} {LDFLAGS} -o {_} {' '.join(objects)}")
-	run(f"objcopy -O binary {_} {kernel}")
-    
-	with TemporaryDirectory() as tmp:
-		bootDir = os.path.join(tmp, "boot")
-		os.makedirs(bootDir, exist_ok=True)
-		
-		image = os.path.join(bootDir, "image.bin")
-		
-		with open(image, "wb") as outfile:
-			with open(stage1, "rb") as infile:
-				outfile.write(infile.read())
-			
-			with open(stage2, "rb") as infile:
-				outfile.write(infile.read())
-			
-			klba = outfile.tell()
-			if klba % 512 != 0:
-				outfile.write(b'\0' * (512 - (klba % 512)))
-				klba = outfile.tell()
-			
-			print(f"kernel lba: {klba // 512}")
-			
-			with open(kernel, "rb") as infile:
-				outfile.write(infile.read())
+	fatimg = os.path.join("build", "iso", "boot")
+	os.makedirs(fatimg, exist_ok=True)
+	fatass = os.path.join(fatimg, "efiboot.img")
+	run(f"dd if=/dev/zero of={fatass} bs=1M count=32")
+	run(f"mkfs.vfat {fatass}")
 
-			ksize = (outfile.tell() - klba) // 512
-			print(f"kernel size: {ksize} sectors")
+	run(f"mmd -i {fatass} ::/EFI")
+	run(f"mmd -i {fatass} ::/EFI/BOOT")
+	run(f"mcopy -i {fatass} {efi2}/BOOTX64.EFI ::/EFI/BOOT/")
+	run(f"mcopy -i {fatass} {kernel} ::")
 
-			with open(stage1, "r+b") as f:
-				f.seek(0x20)
-				chunk = f.read(24)
-				offset = 0x20 + chunk.find((0x67).to_bytes(2, "little"))
-				if offset == 0x1F:
-					print("packet.size offset not found (is the size 0x67?)")
-					sys.exit(1)
-				print(f"packet.size at {offset:#x}")
-				f.seek(offset)
-				f.write(((klba // 512) + ksize).to_bytes(2, "little"))
-		
-		run(
-			f"xorriso -as mkisofs -b boot/{os.path.basename(image)} -c boot/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr {image} -o {iso} {tmp}",
-			stdout=subprocess.DEVNULL,
-			stderr=subprocess.DEVNULL,
-			stdin=subprocess.DEVNULL,
-		)
+	iso = os.path.join('build', 'os.iso')
+	run(f"xorriso -as mkisofs -R -f -e boot/efiboot.img -no-emul-boot -isohybrid-gpt-basdat -o {iso} build/iso")
+
+	run("cp /usr/share/OVMF/OVMF_VARS_4M.fd build/OVMF_VARS.fd")
+
 	return iso
 
 def main(argv) -> int:
 	iso = build(len(argv) > 1 and argv[1] == "debug")
 	if len(argv) <= 1:
 		return 0
-
+	
 	if argv[1] == "run":
-		return run(f"{QEMU} -hdd {iso} {QEMUFLAGS} {' '.join(sys.argv[2:])}")
+		return run(f"{QEMU} {QEMUFLAGS} -hdd build/os.iso")
 	elif argv[1] == "debug":
-		run(f"{QEMU} -hdd {iso} -d int {QEMUFLAGS} -s -S", False)
+		run(f"{QEMU} {QEMUFLAGS} -hdd {iso} -s -S", False)
+		# TODO: fix
 		return run(f"gdb -ex 'target remote localhost:1234' {os.path.join('build', 'kernel.elf')}", True)
 	
 	return 0

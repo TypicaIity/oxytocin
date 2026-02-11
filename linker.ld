@@ -1,8 +1,8 @@
 OUTPUT_FORMAT("elf64-x86-64")
-ENTRY(_start)
+ENTRY(kmain)
 
 SECTIONS {
-	. = 0x8200;
+	. = 0x100000;
 
 	__ld_kernel_begin = .;
 	
