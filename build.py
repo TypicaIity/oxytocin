@@ -9,7 +9,7 @@ LD = "x86_64-elf-ld"
 QEMU = "qemu-system-x86_64"
 TEA = "./tea.exe" # https://github.com/felixsidzed/tea
 
-CCFLAGS = "-ffreestanding -fno-stack-protector -fpic -mno-red-zone -Wall -Wextra -include /opt/cross/lib/gcc/x86_64-elf/13.2.0/include/stdint-gcc.h"
+CCFLAGS = "-ffreestanding -fno-stack-protector -fpic -mno-red-zone -Wall -Wextra -Werror -include /opt/cross/lib/gcc/x86_64-elf/13.2.0/include/stdint-gcc.h -include src/common.h -Isrc"
 ASFLAGS = ""
 LDFLAGS = "-nostd -nostdlib -T linker.ld"
 TEAFLAGS = "--triple x86_64-elf -v -64 -O0 -Isrc"
@@ -40,7 +40,7 @@ def build(debug=False):
 		name, ext = file.rsplit(".", 1)
 		name = os.path.basename(name)
 		out = os.path.join("build", f"{name}.o")
-		run(f"{CC} {CCFLAGS} -I/usr/include/efi -I/usr/include/efi/x86_64 -fshort-wchar {'-g -c' if debug else '-c'} {file} -o {out}")
+		run(f"{CC} -ffreestanding -fno-stack-protector -fpic -mno-red-zone -Wall -Wextra -Werror -I/usr/include/efi -I/usr/include/efi/x86_64 -fshort-wchar {'-g -c' if debug else '-c'} {file} -o {out}")
 		bootObjects.append(out)
 
 	boot = "build/boot.elf"
@@ -58,7 +58,7 @@ def build(debug=False):
 
 	files = []
 	for ext in ("c", "s"):
-		files.extend(glob(f"./src/*.{ext}", recursive=True))
+		files.extend(glob(f"./src/**/*.{ext}", recursive=True))
 
 	print(f"found {len(bootFiles)} kernel source files")
 	if len(files) == 0:

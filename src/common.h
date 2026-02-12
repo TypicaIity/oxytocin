@@ -1,0 +1,20 @@
+#pragma once
+
+typedef struct {
+	void* mmap;
+	uint64_t mmapSize;
+	struct {
+		uint32_t* data;
+		uint32_t width;
+		uint32_t height;
+		uint32_t pitch;
+	} fb;
+} BootInfo;
+
+#ifndef __cplusplus
+#define nullptr 0
+#define true 1
+#define false 0
+#endif
+
+typedef uint64_t size_t;
