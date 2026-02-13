@@ -7,23 +7,31 @@
 
 #include "gfx/graphics.h"
 
+#include "drivers/timer.h"
 #include "drivers/keyboard.h"
+
+#include "proc/process.h"
 
 BootInfo* gInfo = nullptr;
 
 void kinit(BootInfo* info) {
 	gInfo = info;
 
-	gdt_init(), idt_init(), isr_init();
-	pmm_init(), kheap_init(0x1000);
 	gfx_clear(GFX_BLACK);
+	gdt_init(), idt_init(), isr_init();
+	timer_init(100);
+	pmm_init(), kheap_init(0x1000);
+	process_init();
+}
+
+void testproc() {
+	gfx_puttext(0, 0, "123", GFX_LGRAY);
+	process_exit(0);
 }
 
 void kmain(BootInfo* info) {
 	kinit(info);
 
-	asm volatile (
-		"mov $0, %rax\n"
-		"div %al"
-	);
+	process_create("testproc", testproc);
+	//gfx_puttext(0, 0, "456", GFX_LGRAY);
 }

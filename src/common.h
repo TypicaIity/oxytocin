@@ -1,5 +1,7 @@
 #pragma once
 
+typedef uint64_t size_t;
+
 typedef struct {
 	void* mmap;
 	uint64_t mmapSize;
@@ -18,4 +20,4 @@ typedef struct {
 #define bool uint8_t
 #endif
 
-typedef uint64_t size_t;
+#define oxy_noret __attribute__((noreturn)) void

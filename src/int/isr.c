@@ -64,7 +64,7 @@ void isr_register(uint8_t n, isr_t f) {
 
 static const char hexDigits[] = "0123456789ABCDEF";
 
-void isr_handler(context_t* ctx) {
+void isr_handler(ISRContext* ctx) {
 	isr_t f = handlers[ctx->int_no];
 	if (f)
 		f(ctx);
@@ -100,7 +100,7 @@ void isr_handler(context_t* ctx) {
 	}
 }
 
-void irq_handler(context_t* ctx) {
+void irq_handler(ISRContext* ctx) {
 	if (ctx->int_no >= 40)
 		outb(0xA0, 0x20);
 	outb(0x20, 0x20);
