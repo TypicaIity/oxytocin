@@ -15,6 +15,7 @@ typedef struct {
 #define nullptr 0
 #define true 1
 #define false 0
+#define bool uint8_t
 #endif
 
 typedef uint64_t size_t;

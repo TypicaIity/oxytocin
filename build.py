@@ -9,7 +9,7 @@ LD = "x86_64-elf-ld"
 QEMU = "qemu-system-x86_64"
 TEA = "./tea.exe" # https://github.com/felixsidzed/tea
 
-CCFLAGS = "-ffreestanding -fno-stack-protector -fpic -mno-red-zone -Wall -Wextra -Werror -include /opt/cross/lib/gcc/x86_64-elf/13.2.0/include/stdint-gcc.h -include src/common.h -Isrc"
+CCFLAGS = "-ffreestanding -fno-stack-protector -fpic -mno-red-zone -Wall -Wextra -Werror -include /opt/cross/lib/gcc/x86_64-elf/13.2.0/include/stdint-gcc.h -include src/common.h -Isrc -Isrc/std"
 ASFLAGS = ""
 LDFLAGS = "-nostd -nostdlib -T linker.ld"
 TEAFLAGS = "--triple x86_64-elf -v -64 -O0 -Isrc"

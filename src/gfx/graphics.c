@@ -1,12 +1,34 @@
 #include "graphics.h"
+#include <emmintrin.h>
 
 extern BootInfo* gInfo;
 
+// TODO: optimization 🤤🤤🤤
+
 void gfx_clear(uint32_t color) {
-	for (uint64_t i = 0; i < gInfo->fb.height; i++) {
-		for (uint64_t j = 0; j < gInfo->fb.width; j++)
-			gInfo->fb.data[i * gInfo->fb.pitch + j] = color;
-	}
+    uint32_t* base = gInfo->fb.data;
+    uint64_t width  = gInfo->fb.width;
+    uint64_t height = gInfo->fb.height;
+    uint64_t pitch  = gInfo->fb.pitch;
+
+    __m128i vec = _mm_set1_epi32(color);
+    for (uint64_t y = 0; y < height; y++) {
+        uint32_t* row = base + y * pitch;
+        uint64_t x = 0;
+
+        while (x < width && ((uintptr_t)(row + x) & 15))
+            row[x++] = color;
+
+        uint64_t simdEnd = (width - x) & ~3ULL;
+        for (uint64_t i = 0; i < simdEnd; i += 4)
+            _mm_stream_si128((__m128i*)(row + x + i), vec);
+        x += simdEnd;
+
+        while (x < width)
+            row[x++] = color;
+    }
+
+    _mm_sfence();
 }
 
 void gfx_putpixel(uint32_t x, uint32_t y, uint32_t color) {
